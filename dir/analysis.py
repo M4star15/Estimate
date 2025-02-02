@@ -27,19 +27,29 @@ df["P/E Score"] = 1 / df["P/E Ratio"]  # Lower is better
 df["Debt Score"] = 1 / (df["Debt-to-Equity Ratio"] + 1)  # Lower debt is better
 df["Cash Flow Score"] = df["Free Cash Flow"] / df["Free Cash Flow"].max()
 
+df["Safety Score"] = (
+    df["Market Cap"] / df["Market Cap"].max() +  # Normalize Market Cap
+    df["Cash Flow Score"] +  # Strong cash flow = safer
+    (1 / (df["Debt-to-Equity Ratio"] + 1))*0.5  # Lower debt is safer
+) / 3  # Normalize overall safety
+
 # Weighted score
-df["Final Score"] = (
-    df["Revenue Growth Score"] * 0.2 +
-    df["EPS Score"] * 0.2 +
+df["Middle Score"] = (
+    df["Revenue Growth"] * 0.2 +
+    df["EPS Score"] * 0.15 +  # Reduce EPS impact
     df["ROE Score"] * 0.2 +
-    df["P/E Score"] * 0.15 +
-    df["Debt Score"] * 0.15 +
-    df["Cash Flow Score"] * 0.1
+    (1 / df["P/E Score"]) * 0.15 +  # Lower P/E is better
+    (1 / df["Debt Score"]) * 0.05 +  # Penalize high debt more
+    df["Cash Flow Score"] * 0.25
 )
+df["Final Score"] = df["Middle Score"] * df["Safety Score"]
+
 
 # Sort
 df_sorted_final = df.sort_values(by="Final Score", ascending=False)
 print(df_sorted_final[["Stock Symbol", "Company Name", "Final Score"]].head(30))
+df_sorted_middle = df.sort_values(by="Middle Score", ascending=False)
+print(df_sorted_middle[["Stock Symbol", "Company Name", "Middle Score"]].head(30))
 
 top30_growth = df_sorted_growth.head(30)
 plt.figure(figsize=(20, 10))
@@ -65,6 +75,15 @@ plt.barh(top30_final["Company Name"], top30_final["Final Score"], color="purple"
 plt.xlabel("Final Investment Score")
 plt.ylabel("Company")
 plt.title("Top 30 Investment Opportunities")
+plt.gca().invert_yaxis()
+plt.show()
+
+top30_middle = df_sorted_middle.head(30)
+plt.figure(figsize=(20, 10))
+plt.barh(top30_middle["Company Name"], top30_middle["Middle Score"], color="red")
+plt.xlabel("Investment Score without risk factor")
+plt.ylabel("Company")
+plt.title("Top 30 Investment Opportunities without risk factor applied")
 plt.gca().invert_yaxis()
 plt.show()
 
